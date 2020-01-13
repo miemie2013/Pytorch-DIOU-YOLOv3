@@ -1,4 +1,4 @@
-# Keras-DIOU-YOLOv3
+# Pytorch-DIOU-YOLOv3
 <p align="center">
     <img width="100%" src="https://github.com/miemie2013/Keras-DIOU-YOLOv3/blob/master/weixin/diou.png" style="max-width:100%;">
     </a>
