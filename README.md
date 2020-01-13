@@ -10,8 +10,10 @@
 
 ## 传送门
 3款yolov3，总有一款适合你。paddlepaddle算力白嫖版，可以白嫖百度Tesla V100的算力。Pytorch，学术方面最火的深度学习框架，动态图，不必开sess，调试最方便。Keras，对新手最友好的深度学习框架，也是咩酱的初恋。
+
 Keras兄弟版：https://github.com/miemie2013/Keras-DIOU-YOLOv3
-Paddlepaddle姐妹版：
+
+PaddlePaddle姐妹版：制作中
 
 ## 更新日记
 
@@ -31,8 +33,8 @@ Pytorch复现YOLOv3！使用DIOU loss训练。支持将模型导出为keras模�
 
 https://github.com/YunYang1994/tensorflow-yolov3
 
-这个仓库有很大一部分照搬了YunYang1994的代码（label的填写以及损失函数部分），这里致敬大佬！
-导出为pytorch模型、实现dciou、大部分为自己原创（我只是个搬砖的）。
+这个仓库有很大一部分参考（用pytorch的api翻译）了YunYang1994的代码（label的填写以及损失函数部分），这里致敬大佬！
+大部分为自己原创（我只是个搬砖的）。
 YunYang1994的仓库训练出的模型很优秀，为了达到同等优秀的效果，所以损失函数部分参考了大佬仓库里的代码。
 
 
@@ -59,7 +61,7 @@ http://images.cocodataset.org/annotations/image_info_test2017.zip
 
 ```
 train.py            训练yolov3，用的是ciou loss。
-2_pytorch2keras.py  将pytorch模型导出为keras模型。
+2_pytorch2keras.py  将pytorch模型导出为keras模型。给兄弟仓库兄弟版：https://github.com/miemie2013/Keras-DIOU-YOLOv3使用。
 demo.py             用pytorch模型进行预测。对视频进行预测的话需要解除注释。
 eval.py             对pytorch模型评估。跑完这个脚本后需要再跑mAP/main.py进行mAP的计算。
 
@@ -92,7 +94,7 @@ xxx/xxx.jpg 48,240,195,371,11 8,12,352,498,14
 和YunYang1994的注解文件格式是完全一样的，这里再次致敬大佬！
 
 2.本仓库有pattern=0、pattern=1、pattern=2这3种训练模式。
-0-从头训练，1-读取model_body继续训练（包括解冻），2-读取coco预训练模型训练
+0-从头训练，1-读取模型继续训练（包括解冻），2-读取coco预训练模型训练
 你只需要修改pattern的值即可指定训练模式。
 然后在这3种模式的if-else分支下，你再指定批大小batch_size、学习率lr等超参数。
 
