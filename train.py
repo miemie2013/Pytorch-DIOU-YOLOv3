@@ -330,7 +330,7 @@ if __name__ == '__main__':
         initial_epoch = 0
         epochs = 20
 
-    # 打印网络结构，高仿keras
+    # 打印网络结构
     # print(net)
     device = torch.device('cuda' if use_cuda else 'cpu')
     net_img = net.to(device)
