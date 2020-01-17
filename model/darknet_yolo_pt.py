@@ -153,8 +153,12 @@ def loss_layer(conv, pred, label, bboxes, stride, num_class, iou_loss_thresh, al
 
     # RetinaNet的focal_loss，多带上alpha解决不平衡问题。
     # 经过试验发现alpha取>0.5的值时mAP会提高，但误判（False Predictions）会增加；alpha取<0.5的值时mAP会降低，误判会降低。
-    pos_loss = respond_bbox * (0 - T.log(pred_conf)) * T.pow(1 - pred_conf, gamma) * alpha
-    neg_loss = respond_bgd  * (0 - T.log(1 - pred_conf)) * T.pow(pred_conf, gamma) * (1 - alpha)
+    # pos_loss = respond_bbox * (0 - T.log(pred_conf)) * T.pow(1 - pred_conf, gamma) * alpha
+    # neg_loss = respond_bgd  * (0 - T.log(1 - pred_conf)) * T.pow(pred_conf, gamma) * (1 - alpha)
+
+    # 二值交叉熵损失
+    pos_loss = respond_bbox * (0 - T.log(pred_conf))
+    neg_loss = respond_bgd  * (0 - T.log(1 - pred_conf))
 
     conf_loss = pos_loss + neg_loss
     # 回顾respond_bgd，某个预测框和某个gt的iou超过0.5，不被当作是反例。在参与“预测的置信位 和 真实置信位 的 二值交叉熵”时，这个框也可能不是正例(label里没标这个框是1的话)。这个框有可能不参与置信度loss的计算。

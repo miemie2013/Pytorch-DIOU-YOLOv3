@@ -175,56 +175,33 @@ def preprocess_true_boxes(bboxes, train_output_sizes, strides, num_classes, max_
         bbox_class_ind = bbox[4]
         onehot = np.zeros(num_classes, dtype=np.float)
         onehot[bbox_class_ind] = 1.0
-        uniform_distribution = np.full(num_classes, 1.0 / num_classes)
-        deta = 0.01
-        smooth_onehot = onehot * (1 - deta) + deta * uniform_distribution
         bbox_xywh = np.concatenate([(bbox_coor[2:] + bbox_coor[:2]) * 0.5, bbox_coor[2:] - bbox_coor[:2]], axis=-1)
         bbox_xywh_scaled = 1.0 * bbox_xywh[np.newaxis, :] / strides[:, np.newaxis]
         iou = []
-        exist_positive = False
         for i in range(3):
             anchors_xywh = np.zeros((3, 4))
             anchors_xywh[:, 0:2] = np.floor(bbox_xywh_scaled[i, 0:2]).astype(np.int32) + 0.5
             anchors_xywh[:, 2:4] = anchors[i]
             iou_scale = bbox_iou_data(bbox_xywh_scaled[i][np.newaxis, :], anchors_xywh)
             iou.append(iou_scale)
-            iou_mask = iou_scale > 0.3
-            if np.any(iou_mask):
-                xind, yind = np.floor(bbox_xywh_scaled[i, 0:2]).astype(np.int32)
-                # 防止越界
-                grid_r = label[i].shape[0]
-                grid_c = label[i].shape[1]
-                xind = max(0, xind)
-                yind = max(0, yind)
-                xind = min(xind, grid_r-1)
-                yind = min(yind, grid_c-1)
-                label[i][yind, xind, iou_mask, :] = 0
-                label[i][yind, xind, iou_mask, 0:4] = bbox_xywh
-                label[i][yind, xind, iou_mask, 4:5] = 1.0
-                label[i][yind, xind, iou_mask, 5:] = smooth_onehot
-                bbox_ind = int(bbox_count[i] % max_bbox_per_scale)
-                bboxes_xywh[i][bbox_ind, :4] = bbox_xywh
-                bbox_count[i] += 1
-                exist_positive = True
-        if not exist_positive:
-            best_anchor_ind = np.argmax(np.array(iou).reshape(-1), axis=-1)
-            best_detect = int(best_anchor_ind / 3)
-            best_anchor = int(best_anchor_ind % 3)
-            xind, yind = np.floor(bbox_xywh_scaled[best_detect, 0:2]).astype(np.int32)
-            # 防止越界
-            grid_r = label[best_detect].shape[0]
-            grid_c = label[best_detect].shape[1]
-            xind = max(0, xind)
-            yind = max(0, yind)
-            xind = min(xind, grid_r-1)
-            yind = min(yind, grid_c-1)
-            label[best_detect][yind, xind, best_anchor, :] = 0
-            label[best_detect][yind, xind, best_anchor, 0:4] = bbox_xywh
-            label[best_detect][yind, xind, best_anchor, 4:5] = 1.0
-            label[best_detect][yind, xind, best_anchor, 5:] = smooth_onehot
-            bbox_ind = int(bbox_count[best_detect] % max_bbox_per_scale)
-            bboxes_xywh[best_detect][bbox_ind, :4] = bbox_xywh
-            bbox_count[best_detect] += 1
+        best_anchor_ind = np.argmax(np.array(iou).reshape(-1), axis=-1)
+        best_detect = int(best_anchor_ind / 3)
+        best_anchor = int(best_anchor_ind % 3)
+        xind, yind = np.floor(bbox_xywh_scaled[best_detect, 0:2]).astype(np.int32)
+        # 防止越界
+        grid_r = label[best_detect].shape[0]
+        grid_c = label[best_detect].shape[1]
+        xind = max(0, xind)
+        yind = max(0, yind)
+        xind = min(xind, grid_r-1)
+        yind = min(yind, grid_c-1)
+        label[best_detect][yind, xind, best_anchor, :] = 0
+        label[best_detect][yind, xind, best_anchor, 0:4] = bbox_xywh
+        label[best_detect][yind, xind, best_anchor, 4:5] = 1.0
+        label[best_detect][yind, xind, best_anchor, 5:] = onehot
+        bbox_ind = int(bbox_count[best_detect] % max_bbox_per_scale)
+        bboxes_xywh[best_detect][bbox_ind, :4] = bbox_xywh
+        bbox_count[best_detect] += 1
     label_sbbox, label_mbbox, label_lbbox = label
     sbboxes, mbboxes, lbboxes = bboxes_xywh
     return label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes
@@ -293,8 +270,9 @@ if __name__ == '__main__':
     pattern = 0
     save_best_only = False
     max_bbox_per_scale = 150
-    iou_loss_thresh = 0.5
-
+    iou_loss_thresh = 0.7
+    
+    # 经过试验发现，使用focal_loss会增加误判fp，所以默认使用二值交叉熵损失函数训练。下面这3个alpha请忽略。
     # 经过试验发现alpha取>0.5的值时mAP会提高，但误判（False Predictions）会增加；alpha取<0.5的值时mAP会降低，误判会降低。
     # 试验时alpha_1取0.95，alpha_2取0.85，alpha_3取0.75
     # 小感受野输出层输出的格子最多，预测框最多，正样本很有可能占比是最少的，所以试验时alpha_1 > alpha_2 > alpha_3
@@ -328,7 +306,7 @@ if __name__ == '__main__':
         lr = 0.0001
         batch_size = 6
         initial_epoch = 0
-        epochs = 20
+        epochs = 130
 
     # 打印网络结构
     # print(net)
