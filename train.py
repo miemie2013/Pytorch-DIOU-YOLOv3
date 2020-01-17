@@ -250,13 +250,13 @@ def generate_one_batch(annotation_lines, step, batch_size, anchors, num_classes,
     return batch_image, [batch_label_sbbox, batch_label_mbbox, batch_label_lbbox, batch_sbboxes, batch_mbboxes, batch_lbboxes]
 
 if __name__ == '__main__':
-    # train_path = 'annotation/voc2007_train.txt'
-    # val_path = 'annotation/voc2007_val.txt'
-    # classes_path = 'data/voc_classes.txt'
+    train_path = 'annotation/voc2012_train.txt'
+    val_path = 'annotation/voc2012_val.txt'
+    classes_path = 'data/voc_classes.txt'
 
-    train_path = 'annotation/coco2017_train.txt'
-    val_path = 'annotation/coco2017_val.txt'
-    classes_path = 'data/coco_classes.txt'
+    # train_path = 'annotation/coco2017_train.txt'
+    # val_path = 'annotation/coco2017_val.txt'
+    # classes_path = 'data/coco_classes.txt'
 
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
@@ -363,7 +363,7 @@ if __name__ == '__main__':
                 step_loss = train_step_loss.data.numpy()
             train_epoch_loss.append(step_loss)
 
-            # 自定义进度条，高仿keras
+            # 自定义进度条
             percent = ((step + 1) / train_steps) * 100
             num = int(29 * percent / 100)
             time.sleep(0.1)
