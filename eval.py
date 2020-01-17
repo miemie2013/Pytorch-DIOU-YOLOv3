@@ -134,7 +134,7 @@ class YoloTest(object):
         self.num_classes      = len(self.classes)
 
         # 只用pytorch
-        self._decode = Decode(0.6, 0.5, self.input_shape, 'yolo_bgr_mAP_47.pt', self.file, initial_filters=32)
+        self._decode = Decode(0.3, 0.45, self.input_shape, 'yolo_bgr_mAP_47.pt', self.file, initial_filters=32)
 
 
 
