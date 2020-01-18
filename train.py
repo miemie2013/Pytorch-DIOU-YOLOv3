@@ -1,17 +1,18 @@
 #! /usr/bin/env python
 # coding=utf-8
-#================================================================
+# ================================================================
 #
 #   Author      : miemie2013
 #   Created date: 2020-01-11 16:31:57
 #   Description : pytorch_yolov3
 #
-#================================================================
+# ================================================================
 import cv2
 import sys
 import time
 import torch
 import random
+import threading
 import numpy as np
 import os
 import platform
@@ -24,6 +25,7 @@ print(torch.__version__)
 # 禁用cudnn就能解决Windows报错问题。Windows用户如果删掉之后不报CUDNN_STATUS_EXECUTION_FAILED，那就可以删掉。
 if sysstr == 'Windows':
     torch.backends.cudnn.enabled = False
+
 
 def get_classes(classes_path):
     with open(classes_path) as f:
@@ -65,14 +67,14 @@ def random_fill(image, bboxes):
         h, w, _ = image.shape
         # 水平方向填充黑边，以训练小目标检测
         if random.random() < 0.5:
-            dx = random.randint(int(0.5*w), int(1.5*w))
+            dx = random.randint(int(0.5 * w), int(1.5 * w))
             black_1 = np.zeros((h, dx, 3), dtype='uint8')
             black_2 = np.zeros((h, dx, 3), dtype='uint8')
             image = np.concatenate([black_1, image, black_2], axis=1)
             bboxes[:, [0, 2]] += dx
         # 垂直方向填充黑边，以训练小目标检测
         else:
-            dy = random.randint(int(0.5*h), int(1.5*h))
+            dy = random.randint(int(0.5 * h), int(1.5 * h))
             black_1 = np.zeros((dy, w, 3), dtype='uint8')
             black_2 = np.zeros((dy, w, 3), dtype='uint8')
             image = np.concatenate([black_1, image, black_2], axis=0)
@@ -83,26 +85,22 @@ def random_horizontal_flip(image, bboxes):
     if random.random() < 0.5:
         _, w, _ = image.shape
         image = image[:, ::-1, :]
-        bboxes[:, [0,2]] = w - bboxes[:, [2,0]]
+        bboxes[:, [0, 2]] = w - bboxes[:, [2, 0]]
     return image, bboxes
 
 def random_crop(image, bboxes):
     if random.random() < 0.5:
         h, w, _ = image.shape
         max_bbox = np.concatenate([np.min(bboxes[:, 0:2], axis=0), np.max(bboxes[:, 2:4], axis=0)], axis=-1)
-
         max_l_trans = max_bbox[0]
         max_u_trans = max_bbox[1]
         max_r_trans = w - max_bbox[2]
         max_d_trans = h - max_bbox[3]
-
         crop_xmin = max(0, int(max_bbox[0] - random.uniform(0, max_l_trans)))
         crop_ymin = max(0, int(max_bbox[1] - random.uniform(0, max_u_trans)))
         crop_xmax = max(w, int(max_bbox[2] + random.uniform(0, max_r_trans)))
         crop_ymax = max(h, int(max_bbox[3] + random.uniform(0, max_d_trans)))
-
-        image = image[crop_ymin : crop_ymax, crop_xmin : crop_xmax]
-
+        image = image[crop_ymin: crop_ymax, crop_xmin: crop_xmax]
         bboxes[:, [0, 2]] = bboxes[:, [0, 2]] - crop_xmin
         bboxes[:, [1, 3]] = bboxes[:, [1, 3]] - crop_ymin
     return image, bboxes
@@ -111,18 +109,14 @@ def random_translate(image, bboxes):
     if random.random() < 0.5:
         h, w, _ = image.shape
         max_bbox = np.concatenate([np.min(bboxes[:, 0:2], axis=0), np.max(bboxes[:, 2:4], axis=0)], axis=-1)
-
         max_l_trans = max_bbox[0]
         max_u_trans = max_bbox[1]
         max_r_trans = w - max_bbox[2]
         max_d_trans = h - max_bbox[3]
-
         tx = random.uniform(-(max_l_trans - 1), (max_r_trans - 1))
         ty = random.uniform(-(max_u_trans - 1), (max_d_trans - 1))
-
         M = np.array([[1, 0, tx], [0, 1, ty]])
         image = cv2.warpAffine(image, M, (w, h))
-
         bboxes[:, [0, 2]] = bboxes[:, [0, 2]] + tx
         bboxes[:, [1, 3]] = bboxes[:, [1, 3]] + ty
     return image, bboxes
@@ -132,7 +126,7 @@ def parse_annotation(annotation, train_input_size, annotation_type):
     image_path = line[0]
     # image_path = '../'+line[0]
     if not os.path.exists(image_path):
-        raise KeyError("%s does not exist ... " %image_path)
+        raise KeyError("%s does not exist ... " % image_path)
     image = np.array(cv2.imread(image_path))
     # 没有标注物品，即每个格子都当作背景处理
     exist_boxes = True
@@ -155,9 +149,9 @@ def bbox_iou_data(boxes1, boxes2):
     boxes1_area = boxes1[..., 2] * boxes1[..., 3]
     boxes2_area = boxes2[..., 2] * boxes2[..., 3]
     boxes1 = np.concatenate([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
-                            boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
+                             boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
     boxes2 = np.concatenate([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
-                            boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
+                             boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
     left_up = np.maximum(boxes1[..., :2], boxes2[..., :2])
     right_down = np.minimum(boxes1[..., 2:], boxes2[..., 2:])
     inter_section = np.maximum(right_down - left_up, 0.0)
@@ -193,8 +187,8 @@ def preprocess_true_boxes(bboxes, train_output_sizes, strides, num_classes, max_
         grid_c = label[best_detect].shape[1]
         xind = max(0, xind)
         yind = max(0, yind)
-        xind = min(xind, grid_r-1)
-        yind = min(yind, grid_c-1)
+        xind = min(xind, grid_r - 1)
+        yind = min(yind, grid_c - 1)
         label[best_detect][yind, xind, best_anchor, :] = 0
         label[best_detect][yind, xind, best_anchor, 0:4] = bbox_xywh
         label[best_detect][yind, xind, best_anchor, 4:5] = 1.0
@@ -205,6 +199,20 @@ def preprocess_true_boxes(bboxes, train_output_sizes, strides, num_classes, max_
     label_sbbox, label_mbbox, label_lbbox = label
     sbboxes, mbboxes, lbboxes = bboxes_xywh
     return label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes
+
+def multi_thread_read(batch, num, train_input_size, annotation_type, train_output_sizes, strides, num_classes, max_bbox_per_scale, anchors, batch_image,
+                      batch_label_sbbox, batch_label_mbbox, batch_label_lbbox,
+                      batch_sbboxes, batch_mbboxes, batch_lbboxes):
+    image, bboxes, exist_boxes = parse_annotation(batch[num], train_input_size, annotation_type)
+    label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes = preprocess_true_boxes(bboxes, train_output_sizes, strides, num_classes, max_bbox_per_scale, anchors)
+    batch_image[num, :, :, :] = image
+    if exist_boxes:
+        batch_label_sbbox[num, :, :, :, :] = label_sbbox
+        batch_label_mbbox[num, :, :, :, :] = label_mbbox
+        batch_label_lbbox[num, :, :, :, :] = label_lbbox
+        batch_sbboxes[num, :, :] = sbboxes
+        batch_mbboxes[num, :, :] = mbboxes
+        batch_lbboxes[num, :, :] = lbboxes
 
 def generate_one_batch(annotation_lines, step, batch_size, anchors, num_classes, max_bbox_per_scale, annotation_type):
     n = len(annotation_lines)
@@ -230,24 +238,24 @@ def generate_one_batch(annotation_lines, step, batch_size, anchors, num_classes,
     batch_mbboxes = np.zeros((batch_size, max_bbox_per_scale, 4))
     batch_lbboxes = np.zeros((batch_size, max_bbox_per_scale, 4))
 
-    if (step+1)*batch_size > n:
-        batch = annotation_lines[n-batch_size:n]
+    if (step + 1) * batch_size > n:
+        batch = annotation_lines[n - batch_size:n]
     else:
-        batch = annotation_lines[step*batch_size:(step+1)*batch_size]
+        batch = annotation_lines[step * batch_size:(step + 1) * batch_size]
+    threads = []
     for num in range(batch_size):
-        image, bboxes, exist_boxes = parse_annotation(batch[num], train_input_size, annotation_type)
-        label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes = preprocess_true_boxes(bboxes, train_output_sizes, strides, num_classes, max_bbox_per_scale, anchors)
-
-        batch_image[num, :, :, :] = image
-        if exist_boxes:
-            batch_label_sbbox[num, :, :, :, :] = label_sbbox
-            batch_label_mbbox[num, :, :, :, :] = label_mbbox
-            batch_label_lbbox[num, :, :, :, :] = label_lbbox
-            batch_sbboxes[num, :, :] = sbboxes
-            batch_mbboxes[num, :, :] = mbboxes
-            batch_lbboxes[num, :, :] = lbboxes
+        t = threading.Thread(target=multi_thread_read, args=(batch, num, train_input_size, annotation_type, train_output_sizes, strides, num_classes, max_bbox_per_scale, anchors, batch_image,
+                      batch_label_sbbox, batch_label_mbbox, batch_label_lbbox,
+                      batch_sbboxes, batch_mbboxes, batch_lbboxes))
+        threads.append(t)
+        t.start()
+    # 等待所有线程任务结束。
+    for t in threads:
+        t.join()
     batch_image = batch_image.transpose(0, 3, 1, 2)
-    return batch_image, [batch_label_sbbox, batch_label_mbbox, batch_label_lbbox, batch_sbboxes, batch_mbboxes, batch_lbboxes]
+    return batch_image, [batch_label_sbbox, batch_label_mbbox, batch_label_lbbox, batch_sbboxes, batch_mbboxes,
+                         batch_lbboxes]
+
 
 if __name__ == '__main__':
     train_path = 'annotation/voc2012_train.txt'
@@ -271,14 +279,14 @@ if __name__ == '__main__':
     save_best_only = False
     max_bbox_per_scale = 150
     iou_loss_thresh = 0.7
-    
+
     # 经过试验发现，使用focal_loss会增加误判fp，所以默认使用二值交叉熵损失函数训练。下面这3个alpha请忽略。
     # 经过试验发现alpha取>0.5的值时mAP会提高，但误判（False Predictions）会增加；alpha取<0.5的值时mAP会降低，误判会降低。
     # 试验时alpha_1取0.95，alpha_2取0.85，alpha_3取0.75
     # 小感受野输出层输出的格子最多，预测框最多，正样本很有可能占比是最少的，所以试验时alpha_1 > alpha_2 > alpha_3
-    alpha_1 = 0.5    # 小感受野输出层的focal_loss的alpha
-    alpha_2 = 0.5    # 中感受野输出层的focal_loss的alpha
-    alpha_3 = 0.5    # 大感受野输出层的focal_loss的alpha
+    alpha_1 = 0.5  # 小感受野输出层的focal_loss的alpha
+    alpha_2 = 0.5  # 中感受野输出层的focal_loss的alpha
+    alpha_3 = 0.5  # 大感受野输出层的focal_loss的alpha
 
     # 初始卷积核个数
     initial_filters = 8
@@ -313,13 +321,14 @@ if __name__ == '__main__':
     device = torch.device('cuda' if use_cuda else 'cpu')
     net_img = net.to(device)
     from torchsummary import summary
+
     summary(net_img, (3, 416, 416))
 
     # 建立损失函数
     yolo_loss = YoloLoss(num_classes, iou_loss_thresh, anchors, alpha_1, alpha_2, alpha_3)
     if use_cuda:
         yolo_loss = yolo_loss.cuda()  # 如果有gpu可用，损失函数存放在gpu显存里
-        net = net.cuda()              # 如果有gpu可用，模型（包括了权重weight）存放在gpu显存里
+        net = net.cuda()  # 如果有gpu可用，模型（包括了权重weight）存放在gpu显存里
 
     # 验证集和训练集
     with open(train_path) as f:
@@ -330,13 +339,13 @@ if __name__ == '__main__':
     num_val = len(val_lines)
 
     # 一轮的步数
-    train_steps = int(num_train / batch_size) if num_train % batch_size == 0 else int(num_train / batch_size)+1
-    val_steps = int(num_val / batch_size) if num_val % batch_size == 0 else int(num_val / batch_size)+1
+    train_steps = int(num_train / batch_size) if num_train % batch_size == 0 else int(num_train / batch_size) + 1
+    val_steps = int(num_val / batch_size) if num_val % batch_size == 0 else int(num_val / batch_size) + 1
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)  # 传入 net 的所有参数, 学习率
 
     best_val_loss = 0.0
     for t in range(initial_epoch, epochs, 1):
-        print('Epoch %d/%d\n'%(t+1, epochs))
+        print('Epoch %d/%d\n' % (t + 1, epochs))
         epochStartTime = time.time()
         start = time.time()
         # 每个epoch之前洗乱
@@ -346,14 +355,15 @@ if __name__ == '__main__':
         # 训练阶段
         net.train()
         for step in range(train_steps):
-            batch_image, lables = generate_one_batch(train_lines, step, batch_size, anchors, num_classes, max_bbox_per_scale, 'train')
+            batch_image, lables = generate_one_batch(train_lines, step, batch_size, anchors, num_classes,
+                                                     max_bbox_per_scale, 'train')
             if use_cuda:
                 batch_image = torch.Tensor(batch_image).cuda()
                 lables = [torch.Tensor(it).cuda() for it in lables]
             else:
                 batch_image = torch.Tensor(batch_image)
                 lables = [torch.Tensor(it) for it in lables]
-            y1_pred, y2_pred, y3_pred = net(batch_image)   # 直接卷积后的输出
+            y1_pred, y2_pred, y3_pred = net(batch_image)  # 直接卷积后的输出
             args = [y1_pred, y2_pred, y3_pred] + lables
             train_step_loss = yolo_loss(args)
             step_loss = 0.
@@ -369,8 +379,9 @@ if __name__ == '__main__':
             time.sleep(0.1)
             ETA = int((time.time() - epochStartTime) * (100 - percent) / percent)
             sys.stdout.write('\r{0}'.format(' ' * (len(str(train_steps)) - len(str(step + 1)))) + \
-                             '{0}/{1} [{2}>'.format(step + 1, train_steps, '=' * num) + '{0}'.format('.' * (29 - num)) + ']' + \
-                             ' - ETA: ' + str(ETA) + 's' + ' - loss: %.4f'%(step_loss, ))
+                             '{0}/{1} [{2}>'.format(step + 1, train_steps, '=' * num) + '{0}'.format(
+                '.' * (29 - num)) + ']' + \
+                             ' - ETA: ' + str(ETA) + 's' + ' - loss: %.4f' % (step_loss,))
             sys.stdout.flush()
 
             # 更新权重
@@ -381,14 +392,15 @@ if __name__ == '__main__':
         # 验证阶段
         net.eval()
         for step in range(val_steps):
-            batch_image, lables = generate_one_batch(val_lines, step, batch_size, anchors, num_classes, max_bbox_per_scale, 'val')
+            batch_image, lables = generate_one_batch(val_lines, step, batch_size, anchors, num_classes,
+                                                     max_bbox_per_scale, 'val')
             if use_cuda:
                 batch_image = torch.Tensor(batch_image).cuda()
                 lables = [torch.Tensor(it).cuda() for it in lables]
             else:
                 batch_image = torch.Tensor(batch_image)
                 lables = [torch.Tensor(it) for it in lables]
-            y1_pred, y2_pred, y3_pred = net(batch_image)   # 直接卷积后的输出
+            y1_pred, y2_pred, y3_pred = net(batch_image)  # 直接卷积后的输出
             args = [y1_pred, y2_pred, y3_pred] + lables
             val_step_loss = yolo_loss(args)
             step_loss = 0.
@@ -434,6 +446,7 @@ if __name__ == '__main__':
         # 打印本轮训练结果
         sys.stdout.write(
             '\r{0}/{1} [{2}='.format(train_steps, train_steps, '=' * num) + '{0}'.format('.' * (29 - num)) + ']' + \
-            ' - %ds' % (int(time.time() - epochStartTime),) + ' - loss: %.4f'%(train_epoch_loss, ) + ' - val_loss: %.4f\n'%(val_epoch_loss, ))
+            ' - %ds' % (int(time.time() - epochStartTime),) + ' - loss: %.4f' % (
+            train_epoch_loss,) + ' - val_loss: %.4f\n' % (val_epoch_loss,))
         sys.stdout.flush()
 
