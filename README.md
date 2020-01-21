@@ -9,11 +9,11 @@
 </p>
 
 ## 传送门
-3款yolov3，总有一款适合你。paddlepaddle算力白嫖版，可以白嫖百度Tesla V100的算力。Pytorch，学术方面最火的深度学习框架，动态图，不必开sess，调试最方便。Keras，对新手最友好的深度学习框架，也是咩酱的初恋。
+3款yolov3，总有一款适合你。paddlepaddle版，可以使用百度Tesla V100的算力。Pytorch，学术方面最火的深度学习框架，动态图，不必开sess，调试最方便。Keras，对新手友好的深度学习框架。
 
 Keras兄弟版：https://github.com/miemie2013/Keras-DIOU-YOLOv3
 
-PaddlePaddle姐妹版：制作中
+PaddlePaddle姐妹版：https://github.com/miemie2013/Paddle-DIOU-YOLOv3
 
 ## 更新日记
 
