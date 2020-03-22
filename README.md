@@ -116,14 +116,6 @@ yolov3的initial_filters默认是32，你调小initial_filters会使得模型变
 cv算法交流q群：645796480
 但是关于仓库的疑问尽量在Issues上提，避免重复解答。
 
-扫一扫关注我们的公众号：
-<p align="center">
-    <img width="20%" src="https://github.com/miemie2013/Keras-DIOU-YOLOv3/blob/master/weixin/qrcode_for_gh_989f6358f007_258.jpg" style="max-width:20%;">
-    </a>
-</p>
-或者直接搜索公众号：猿生物语
 
-不定时推送一些技术文章哦！
-
-
-
+## One More Thing
+本人单身，有意向相处的理工科妹子请加微信wer186259，备注GitHub，并带上一小段自我介绍。关于我本人，本科毕业于南京大学（2018），人在广州，爱好GitHub，爱好开源。希望对方是本科或者硕士学历，专业嘛。。。能看到这个仓库的也只能是那几种专业了，一起讨论算法和编程也是很有趣的！希望对方能粘人一点，主动一点，我周末也基本在研究算法，我一直也没有什么时间社交，很被动，这次是我这么认真地对待这件事。
