@@ -10,11 +10,19 @@
 
 ## 传送门
 
-Keras镜像版：https://github.com/miemie2013/Keras-DIOU-YOLOv3
+Keras版YOLOv3: https://github.com/miemie2013/Keras-DIOU-YOLOv3
 
-PaddlePaddle镜像版：https://github.com/miemie2013/Paddle-DIOU-YOLOv3
+Pytorch版YOLOv3：https://github.com/miemie2013/Pytorch-DIOU-YOLOv3
 
-Keras版yolov4: https://github.com/miemie2013/Keras-YOLOv4
+PaddlePaddle版YOLOv3：https://github.com/miemie2013/Paddle-DIOU-YOLOv3
+
+PaddlePaddle完美复刻版版yolact: https://github.com/miemie2013/PaddlePaddle_yolact
+
+yolov3魔改成yolact: https://github.com/miemie2013/yolact
+
+Keras版YOLOv4: https://github.com/miemie2013/Keras-YOLOv4
+
+Pytorch版YOLOv4: 制作中
 
 ## 更新日记
 
